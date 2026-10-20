@@ -17,3 +17,16 @@ Right-click encryption for Windows 11: 7z + AES-256 (file names encrypted) via t
 
 ## Uninstall
 `%LOCALAPPDATA%\Programs\Encrypt7z\Uninstall.ps1`
+
+## Requirements
+Windows 11, [7-Zip](https://www.7-zip.org/) (64-bit) installed, internet access during install.
+
+## Third-party components
+This repository contains only the scripts below, licensed under MIT (see `LICENSE`). It does not include any third-party binaries:
+- The installer downloads the [7Zip4PowerShell](https://www.powershellgallery.com/packages/7Zip4PowerShell) module from the PowerShell Gallery at install time. It has its own license; check it before redistributing the installed files.
+- The 7-Zip engine (`7z.dll`) is copied from your own 7-Zip installation. 7-Zip is licensed under the GNU LGPL (with an unRAR restriction).
+
+## Security notes
+- Encryption: 7z format, AES-256; the password is handled in-process and never placed on a command line.
+- "Delete originals" is a normal permanent delete, not a secure wipe; deleted data may remain recoverable on SSDs. Use BitLocker/Device Encryption for that.
+- Scripts run with `-ExecutionPolicy Bypass` (per process only).
