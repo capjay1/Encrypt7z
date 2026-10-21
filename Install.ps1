@@ -67,7 +67,7 @@ else {
         Write-Warning 'curl.exe download failed; trying PowerShellGet (Save-Module)...'
         try { Save-Module -Name 7Zip4PowerShell -RequiredVersion $ModuleVersion -Path $modDir -Force -ErrorAction Stop }
         catch {
-            throw ("Could not download the module: $($_.Exception.Message)`\n" +
+            throw ("Could not download the module: $($_.Exception.Message)`n" +
                 "Check that this PC can reach https://www.powershellgallery.com (DNS, proxy, firewall). " +
                 "Or install offline: re-run with -ModuleSource <path to 7Zip4PowerShell.$ModuleVersion.nupkg, or the Modules folder from a PC where install worked>.")
         }
