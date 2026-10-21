@@ -8,6 +8,8 @@ Right-click encryption for Windows 11: 7z + AES-256 (file names encrypted) via t
    (needs internet once, to fetch the pinned module from the PowerShell Gallery)
 
 ### Offline or blocked network
+If the PowerShell Gallery is unreachable (for example, broken IPv6 routing), the installer automatically retries over IPv4 with the built-in `curl.exe`. If that also fails:
+
 If the download fails, get `https://www.powershellgallery.com/api/v2/package/7Zip4PowerShell/2.4.0` on another PC (it saves a `.nupkg`), or copy `%LOCALAPPDATA%\Programs\Encrypt7z\Modules` from a PC where the install worked, then run:
 `powershell -ExecutionPolicy Bypass -File .\Install.ps1 -ModuleSource <path to the .nupkg or Modules folder>`
 

@@ -32,29 +32,45 @@ if (Test-Path -LiteralPath $modDir) {
     catch { throw "Cannot replace the old module, a file is in use. Close ALL PowerShell windows (one may have imported the module), then run Install.ps1 from a fresh window. Details: $($_.Exception.Message)" }
 }
 New-Item -ItemType Directory -Force -Path $modDir | Out-Null
+function Expand-Nupkg {
+    param([string]$File)
+    $dest = Join-Path $modDir "7Zip4PowerShell\$ModuleVersion"
+    New-Item -ItemType Directory -Force -Path $dest | Out-Null
+    $zip = Join-Path $env:TEMP ('7z4ps-' + [Guid]::NewGuid().ToString('N') + '.zip')
+    Copy-Item -LiteralPath $File -Destination $zip
+    try { Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force } finally { Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue }
+}
+
 if ($ModuleSource) {
     $src = (Resolve-Path -LiteralPath $ModuleSource).Path
     Write-Host "Using local module source: $src"
     if ((Get-Item -LiteralPath $src).PSIsContainer) {
         Copy-Item -Path (Join-Path $src '*') -Destination $modDir -Recurse -Force
     }
-    else {
-        $dest = Join-Path $modDir "7Zip4PowerShell\$ModuleVersion"
-        New-Item -ItemType Directory -Force -Path $dest | Out-Null
-        $zip = Join-Path $env:TEMP ('7z4ps-' + [Guid]::NewGuid().ToString('N') + '.zip')
-        Copy-Item -LiteralPath $src -Destination $zip
-        Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force
-        Remove-Item -LiteralPath $zip -Force
-    }
+    else { Expand-Nupkg -File $src }
 }
 else {
     Write-Host "Downloading 7Zip4PowerShell $ModuleVersion from the PowerShell Gallery..."
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    try { Save-Module -Name 7Zip4PowerShell -RequiredVersion $ModuleVersion -Path $modDir -Force -ErrorAction Stop }
-    catch {
-        throw ("Could not download the module: $($_.Exception.Message)`n" +
-            "Check that this PC can reach https://www.powershellgallery.com (DNS, proxy, firewall, IPv6). " +
-            "Or install offline: re-run with -ModuleSource <path to 7Zip4PowerShell.$ModuleVersion.nupkg, or the Modules folder from a PC where install worked>.")
+    # 1st try: curl.exe over IPv4 (fast; avoids long hangs when IPv6 routing to the gallery is broken).
+    $curl  = Join-Path $env:SystemRoot 'System32\curl.exe'
+    $nupkg = Join-Path $env:TEMP ('7Zip4PowerShell.' + $ModuleVersion + '.nupkg')
+    $ok = $false
+    if (Test-Path -LiteralPath $curl) {
+        & $curl --ipv4 --fail --location --silent --show-error --connect-timeout 20 --max-time 300 --output $nupkg "https://www.powershellgallery.com/api/v2/package/7Zip4PowerShell/$ModuleVersion"
+        $ok = ($LASTEXITCODE -eq 0) -and (Test-Path -LiteralPath $nupkg)
+    }
+    if ($ok) {
+        try { Expand-Nupkg -File $nupkg } finally { Remove-Item -LiteralPath $nupkg -Force -ErrorAction SilentlyContinue }
+    }
+    else {
+        Write-Warning 'curl.exe download failed; trying PowerShellGet (Save-Module)...'
+        try { Save-Module -Name 7Zip4PowerShell -RequiredVersion $ModuleVersion -Path $modDir -Force -ErrorAction Stop }
+        catch {
+            throw ("Could not download the module: $($_.Exception.Message)`\n" +
+                "Check that this PC can reach https://www.powershellgallery.com (DNS, proxy, firewall). " +
+                "Or install offline: re-run with -ModuleSource <path to 7Zip4PowerShell.$ModuleVersion.nupkg, or the Modules folder from a PC where install worked>.")
+        }
     }
 }
 $dll = Get-ChildItem -LiteralPath $modDir -Recurse -Filter '7Zip4Powershell.dll' | Select-Object -First 1
