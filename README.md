@@ -7,6 +7,10 @@ Right-click encryption for Windows 11: 7z + AES-256 (file names encrypted) via t
 2. In PowerShell (no admin): `powershell -ExecutionPolicy Bypass -File .\Install.ps1`
    (needs internet once, to fetch the pinned module from the PowerShell Gallery)
 
+### Offline or blocked network
+If the download fails, get `https://www.powershellgallery.com/api/v2/package/7Zip4PowerShell/2.4.0` on another PC (it saves a `.nupkg`), or copy `%LOCALAPPDATA%\Programs\Encrypt7z\Modules` from a PC where the install worked, then run:
+`powershell -ExecutionPolicy Bypass -File .\Install.ps1 -ModuleSource <path to the .nupkg or Modules folder>`
+
 ## Use
 - One item: right-click > Show more options > **Encrypt...**
 - Several items: select them > right-click > Show more options > Send to > **Encrypt (7-Zip)**

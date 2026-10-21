@@ -1,7 +1,9 @@
 [CmdletBinding()]
 param(
     # Pinned version of the 7Zip4PowerShell module that gets vendored into the install folder.
-    [string]$ModuleVersion = '2.4.0'
+    [string]$ModuleVersion = '2.4.0',
+    # Offline install: a downloaded 7Zip4PowerShell .nupkg file, or the Modules folder copied from a PC where the install worked.
+    [string]$ModuleSource = ''
 )
 
 # Per-user install, no admin needed. Safe to run again (it overwrites its own files and registry keys).
@@ -30,8 +32,31 @@ if (Test-Path -LiteralPath $modDir) {
     catch { throw "Cannot replace the old module, a file is in use. Close ALL PowerShell windows (one may have imported the module), then run Install.ps1 from a fresh window. Details: $($_.Exception.Message)" }
 }
 New-Item -ItemType Directory -Force -Path $modDir | Out-Null
-Write-Host "Downloading 7Zip4PowerShell $ModuleVersion from the PowerShell Gallery..."
-Save-Module -Name 7Zip4PowerShell -RequiredVersion $ModuleVersion -Path $modDir -Force
+if ($ModuleSource) {
+    $src = (Resolve-Path -LiteralPath $ModuleSource).Path
+    Write-Host "Using local module source: $src"
+    if ((Get-Item -LiteralPath $src).PSIsContainer) {
+        Copy-Item -Path (Join-Path $src '*') -Destination $modDir -Recurse -Force
+    }
+    else {
+        $dest = Join-Path $modDir "7Zip4PowerShell\$ModuleVersion"
+        New-Item -ItemType Directory -Force -Path $dest | Out-Null
+        $zip = Join-Path $env:TEMP ('7z4ps-' + [Guid]::NewGuid().ToString('N') + '.zip')
+        Copy-Item -LiteralPath $src -Destination $zip
+        Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force
+        Remove-Item -LiteralPath $zip -Force
+    }
+}
+else {
+    Write-Host "Downloading 7Zip4PowerShell $ModuleVersion from the PowerShell Gallery..."
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    try { Save-Module -Name 7Zip4PowerShell -RequiredVersion $ModuleVersion -Path $modDir -Force -ErrorAction Stop }
+    catch {
+        throw ("Could not download the module: $($_.Exception.Message)`n" +
+            "Check that this PC can reach https://www.powershellgallery.com (DNS, proxy, firewall, IPv6). " +
+            "Or install offline: re-run with -ModuleSource <path to 7Zip4PowerShell.$ModuleVersion.nupkg, or the Modules folder from a PC where install worked>.")
+    }
+}
 $dll = Get-ChildItem -LiteralPath $modDir -Recurse -Filter '7Zip4Powershell.dll' | Select-Object -First 1
 if (-not $dll) { throw 'Module download looks incomplete: 7Zip4Powershell.dll not found.' }
 
